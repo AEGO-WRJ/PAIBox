@@ -50,6 +50,9 @@ from .components.neuron.neurons import StoreVoltageNeuron as StoreVoltageNeuron
 # Input projection
 from .components.projection import InputProj as InputProj
 
+from .components.operations import Transpose as Transpose
+from .components.operations import Concat as Concat
+
 # Connection types of synapses
 from .components.synapses import ConnType as SynConnType
 
