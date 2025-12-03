@@ -1,3 +1,4 @@
+import itertools
 import sys
 from collections import defaultdict
 from collections.abc import Sequence
@@ -65,6 +66,51 @@ __all__ = [
     "get_clk_en_L2_dict",
     "get_neuron_phy_loc",
 ]
+
+from paicorelib import Coord, ReplicationId as RId
+
+# cfg_multicast_chip = [
+#     ChipCoord(1, 0),
+#     ChipCoord(0, 0),
+#     ChipCoord(1, 1),
+#     ChipCoord(0, 1)
+# ]
+cfg_multicast_base_coord = [
+    Coord(0, 0),  # top half
+    # Coord(0, 0b10000),  # left down
+    # Coord(0b10000, 0b10000),  # half top of right down of chip
+    # Coord(0b10000, 0b11000),  # left down of right down of chip
+    # Coord(0b11000, 0b11000),  # half top of right down of right down of chip
+    # Coord(0b11000, 0b11100),  # left down of right down of right down of chip
+    # Alternative multicast cores
+    # Coord(0, 0),  # left half
+    # Coord(0b10000, 0),  # top right
+    # Top half split left+right
+    # Coord(0, 0),
+    # Coord(0b10000, 0),
+]
+cfg_multicast_rid = [
+    RId(0b11111, 0b01111),
+    # RId(0b01111, 0b01111),
+    # RId(0b01111, 0b00111),
+    # RId(0b00111, 0b00111),
+    # RId(0b00111, 0b00011),
+    # RId(0b00011, 0b00011),
+    # Alternative multicast cores
+    # RId(0b01111, 0b11111),
+    # RId(0b01111, 0b01111),
+    # Top half split left+right
+    # RId(0b01111, 0b01111),
+    # RId(0b01111, 0b01111),
+]
+
+
+def get_cfg_multicast_chip_core_rid():
+    for chip, (base_coord, rid) in itertools.product(
+        _BACKEND_CONTEXT.target_chip_addr,
+        zip(cfg_multicast_base_coord, cfg_multicast_rid),
+    ):
+        yield (chip, base_coord, rid)
 
 
 def gen_offline_config_frames(

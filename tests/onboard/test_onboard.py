@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 import paibox as pb
+from paibox.backend.conf_exporting import OffCoreCfg
 from paibox.types import NEUOUT_U8_DTYPE, VOLTAGE_DTYPE
 from tests.components.utils import ann_bit_trunc
 from tests.utils import is_ci_env
@@ -2384,6 +2385,125 @@ class TestOnBoard_ReadNeuronVoltage:
         )
 
         print(f"Test {TEST_NAME} end")
+
+
+from paicorelib import HwConfig
+
+
+class TestOnBoard_ChipPerf:
+    def test_offline_cores_tops_ann(self, monkeypatch):
+        # NOTE: Configure every offline cores to ANN mode: 1-bit, full connection.
+        n_core_offline = 1  # HwCfg.N_CORE_OFFLINE
+
+        class FullConnNetwork(pb.Network):
+            def __init__(self):
+                super().__init__()
+
+                core_fanin = OffCoreCfg.N_FANIN_PER_DENDRITE_ANN
+                core_fanout = OffCoreCfg.N_NEURON_MAX_ANN
+                self.inputs = pb.NodeList()
+                self.layer = pb.NodeList()
+
+                for i in range(n_core_offline):
+                    self.inputs.append(
+                        pb.InputProj(
+                            input=None,
+                            shape_out=(core_fanin,),
+                            name=f"input_{i}",
+                        )
+                    )
+
+                for i in range(n_core_offline):
+                    self.layer.append(
+                        pb.Linear(
+                            self.inputs[i],
+                            core_fanout,
+                            np.ones((core_fanin, core_fanout), dtype=np.bool),
+                            name=f"linear_{i}",
+                            tick_wait_start=1,
+                            tick_wait_end=0,
+                        )
+                    )
+
+        clist = [(1, 0), (0, 0), (1, 1), (0, 1)]
+        # clist = [(1, 0)]
+        monkeypatch.setattr(pb.BACKEND_CONFIG, "target_chip_addr", clist)
+        monkeypatch.setattr(pb.BACKEND_CONFIG, "output_chip_addr", (2, 0))
+
+        network = FullConnNetwork()
+        mapper = pb.Mapper()
+        mapper.build(network)
+        gh_info = mapper.compile(weight_bit_optimization=True)
+
+        # assert gh_info["n_core_occupied"] == n_core_offline
+
+        mapper.export(
+            fp=Path(__file__).parent
+            / f"ann_perf_{HwConfig.N_CORE_OFFLINE}_{len(clist)}chip",
+            format="txt",
+            use_hw_sim=True,
+        )
+
+    def test_offline_cores_tsops_snn(self, monkeypatch):
+        # NOTE: Configure every offline cores to SNN mode: 1-bit, full connection.
+        n_core_offline = 1  # HwCfg.N_CORE_OFFLINE
+
+        class FullConnNetwork(pb.Network):
+            def __init__(self):
+                super().__init__()
+
+                core_fanin = OffCoreCfg.N_FANIN_PER_DENDRITE_SNN
+                core_fanout = OffCoreCfg.N_NEURON_MAX_SNN
+                self.inputs = pb.NodeList()
+                self.neu = pb.NodeList()
+                self.syn = pb.NodeList()
+
+                for i in range(n_core_offline):
+                    self.inputs.append(
+                        pb.InputProj(
+                            input=None, shape_out=(core_fanin,), name=f"input_{i}"
+                        )
+                    )
+
+                for i in range(n_core_offline):
+                    self.neu.append(
+                        pb.IF(
+                            core_fanout,
+                            threshold=1,
+                            tick_wait_start=1,
+                            tick_wait_end=0,
+                            name=f"if_{i}",
+                        )
+                    )
+
+                for i in range(n_core_offline):
+                    self.syn.append(
+                        pb.FullConn(
+                            self.inputs[i],
+                            self.neu[i],
+                            np.ones((core_fanin, core_fanout), dtype=np.bool),
+                            name=f"syn_{i}",
+                        )
+                    )
+
+        # clist = [(1, 0), (0, 0), (1, 1), (0, 1)]
+        clist = [(1, 0)]
+        monkeypatch.setattr(pb.BACKEND_CONFIG, "target_chip_addr", clist)
+        monkeypatch.setattr(pb.BACKEND_CONFIG, "output_chip_addr", (3, 0))
+
+        network = FullConnNetwork()
+        mapper = pb.Mapper()
+        mapper.build(network)
+        gh_info = mapper.compile(weight_bit_optimization=True)
+
+        # assert gh_info["n_core_occupied"] == n_core_offline
+
+        mapper.export(
+            fp=Path(__file__).parent
+            / f"snn_perf_{512}_{len(clist)}chip10_to_30_top_half",
+            format="txt",
+            use_hw_sim=True,
+        )
 
 
 if __name__ == "__main__":
