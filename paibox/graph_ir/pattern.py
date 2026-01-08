@@ -12,7 +12,7 @@ from torch.fx.experimental.optimization import (
 from torch.nn import functional as F
 
 from .ir_base import OfflineCoreOpNode, PAIIR
-from .suppport_ops import SUPPPORT_NEURON_OPS, ACTIVATION_OPS, USE_CROSSBAR_OPS
+from .suppport_ops import COMP_OPS, SUPPPORT_NEURON_OPS, ACTIVATION_OPS, USE_CROSSBAR_OPS
 
 
 def _parent_name(target: str) -> tuple[str, str]:
@@ -51,17 +51,13 @@ class Pattern(ABC):
         raise NotImplementedError
 
 
-class TwoOpFusionPattern(Pattern):
-    pass
-
-
-class CompActPattern(TwoOpFusionPattern):
-    patterns = [(c, a) for c in COMP_OPS for a in ACT_OPS]
+class ConvActPattern(Pattern):
+    patterns = [(c, a) for c in COMP_OPS for a in ACTIVATION_OPS]
 
     def match(self, node: fx.Node, modules: dict[str, nn.Module]) -> bool:
         for p in self.patterns:
             if matches_module_pattern2(p, node, modules):
-                if len(node.args[0].users) > 1:
+                if isinstance(node.args[0], fx.Node) and len(node.args[0].users) > 1:
                     continue
                 else:
                     return True
@@ -72,14 +68,79 @@ class CompActPattern(TwoOpFusionPattern):
         self, node: fx.Node, modules: dict[str, nn.Module], graph: fx.Graph
     ) -> None:
         assert isinstance(node.args[0], fx.Node)
-        new_node = OfflineCoreOpNode(node.args[0], node, dict())
 
-        replace_node_with_ir(node.args[0], modules, new_node)
-        node.replace_all_uses_with(node.args[0])
+        # Capture names before modification
+        input_node = node.args[0]
+        input_name = input_node.name
+        node_name = node.name
+
+        # Prepare modules
+        input_target = input_node.target
+        node_target = node.target
+        input_module = modules.get(input_target) if isinstance(
+            input_target, str) else None
+        node_module = modules.get(node_target) if isinstance(
+            node_target, str) else None
+
+        # TODO: Check if OfflineCoreOpNode constructor signature matches
+        new_node = OfflineCoreOpNode(
+            input_node, node, input_module, node_module)
+        new_node_name = new_node.name
+
+        replace_node_with_ir(input_node, modules, new_node)
+        node.replace_all_uses_with(input_node)
         graph.erase_node(node)
 
         print(
-            f"Replaced {node.args[0].name} + {node.name} with new node: {new_node.name}"
+            f"Replaced {input_name} + {node_name} with new node: {new_node_name}"
+        )
+
+
+class ConvNeuronPattern(Pattern):
+    patterns = [(c, n) for c in COMP_OPS for n in SUPPPORT_NEURON_OPS]
+
+    def match(self, node: fx.Node, modules: dict[str, nn.Module]) -> bool:
+        for p in self.patterns:
+            if matches_module_pattern2(p, node, modules):
+                if isinstance(node.args[0], fx.Node) and len(node.args[0].users) > 1:
+                    continue
+                else:
+                    return True
+
+        return False
+
+    def rewrite(
+        self, node: fx.Node, modules: dict[str, nn.Module], graph: fx.Graph
+    ) -> None:
+        assert isinstance(node.args[0], fx.Node)
+
+        # Check if it is a neuron op to verify pattern correctness?
+        # Actually pattern matching guarantees node is Neuron and args[0] is Conv
+
+        # Capture names before graph modification
+        input_node = node.args[0]
+        input_name = input_node.name
+        node_name = node.name
+
+        # Prepare modules
+        input_target = input_node.target
+        node_target = node.target
+        input_module = modules.get(input_target) if isinstance(
+            input_target, str) else None
+        node_module = modules.get(node_target) if isinstance(
+            node_target, str) else None
+
+        # Create the fused node
+        new_node = OfflineCoreOpNode(
+            input_node, node, input_module, node_module)
+        new_node_name = new_node.name
+
+        replace_node_with_ir(input_node, modules, new_node)
+        node.replace_all_uses_with(input_node)
+        graph.erase_node(node)
+
+        print(
+            f"Replaced {input_name} + {node_name} with new node: {new_node_name}"
         )
 
 
@@ -96,7 +157,7 @@ def _validate_pass_schedule_constraint(
     constraint: Callable[[Pattern, Pattern], bool], passes: list[Pattern]
 ) -> None:
     for i, a in enumerate(passes):
-        for j, b in enumerate(passes[i + 1 :]):
+        for j, b in enumerate(passes[i + 1:]):
             if constraint(a, b):
                 continue
             raise RuntimeError(
@@ -125,7 +186,8 @@ class PAIIRPatternMatcher:
         if len(_patterns) == 0:
             return
 
-        patterns_left = [ps for ps in self.patterns if not isinstance(ps, _patterns)]
+        patterns_left = [
+            ps for ps in self.patterns if not isinstance(ps, _patterns)]
         self.patterns = patterns_left
         self._validated = False
 

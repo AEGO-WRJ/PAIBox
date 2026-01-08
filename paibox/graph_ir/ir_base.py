@@ -28,6 +28,9 @@ from paicorelib import (
 from torch import fx, nn
 
 from .suppport_ops import OpLoc
+from spikingjelly.activation_based import neuron
+
+from .suppport_ops import COMP_OPS, ACTIVATION_OPS
 
 
 @dataclass
@@ -104,7 +107,13 @@ class OutputIR(ViewIR):
 class CoreOpNode(PAIIR):
     _op_loc: OpLoc
 
-    def __init__(self, comp_op: fx.Node, act_op: fx.Node) -> None:
+    def __init__(
+        self,
+        comp_op: fx.Node,
+        act_op: fx.Node,
+        comp_module: nn.Module | None = None,
+        act_module: nn.Module | None = None,
+    ) -> None:
         name = comp_op.name + "_" + act_op.name + "_coreop"
         super().__init__(name)
         self._comp_op = comp_op
@@ -112,7 +121,15 @@ class CoreOpNode(PAIIR):
         # We recorded the shape in meta["tensor_meta"]
         self.output_shape = act_op.meta["tensor_meta"].shape
 
+        self.comp_module = comp_module
+        self.act_module = act_module
+
     def forward(self, x):
+        if self.comp_module is not None and self.act_module is not None:
+            x = self.comp_module(x)
+            x = self.act_module(x)
+        elif self.comp_module is not None:
+            x = self.comp_module(x)
         return x
 
     def opnode_eq(self, other: Any) -> bool:
@@ -126,8 +143,14 @@ class CoreOpNode(PAIIR):
 class OfflineCoreOpNode(CoreOpNode):
     _op_loc: OpLoc = OpLoc.OFFLINE_CORE
 
-    def __init__(self, comp_op: fx.Node, act_op: fx.Node) -> None:
-        super().__init__(comp_op, act_op)
+    def __init__(
+        self,
+        comp_op: fx.Node,
+        act_op: fx.Node,
+        comp_module: nn.Module | None = None,
+        act_module: nn.Module | None = None,
+    ) -> None:
+        super().__init__(comp_op, act_op, comp_module, act_module)
 
 
 # TODO 对于Add算子，如何给其构建IR？

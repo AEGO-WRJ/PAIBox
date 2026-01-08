@@ -2,7 +2,7 @@ import sys
 from collections.abc import Sequence
 
 import numpy as np
-from paicorelib import LCM, LDM, NTM, RM, OffRAMDefs
+from paicorelib import LCM, LDM, NTM, RM, OfflineNeuRegLim
 
 from paibox.types import LEAK_V_DTYPE, DataType, LeakVType, Shape
 
@@ -28,7 +28,7 @@ __all__ = [
     "STDPLIF",
 ]
 
-POS_THRES_MAX = OffRAMDefs.POS_THRES_MAX
+POS_THRES_MAX = OfflineNeuRegLim.POS_THRES_MAX
 
 
 def _bias_to_leak_v(bias: DataType) -> LeakVType | int:

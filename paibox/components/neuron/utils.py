@@ -7,7 +7,7 @@ from paicorelib import (
     InputWidthFormat,
     MaxPoolingEnable,
     OffCoreCfg,
-    OffRAMDefs,
+    OfflineNeuRegLim,
     OnCoreCfg,
     SNNModeEnable,
     SpikeWidthFormat,
@@ -24,19 +24,20 @@ from paibox.types import (
     VoltageType,
 )
 
-BIT_TRUNC_MAX = OffRAMDefs.BIT_TRUNC_MAX
-LEAK_V_BIT_MAX = OffRAMDefs.LEAK_V_BIT_MAX
-LEAK_V_MAX = OffRAMDefs.LEAK_V_MAX
-LEAK_V_MIN = OffRAMDefs.LEAK_V_MIN
-NEG_THRES_MAX = OffRAMDefs.NEG_THRES_MAX
-V_MAX = OffRAMDefs.VOLTAGE_MAX
-V_MIN = OffRAMDefs.VOLTAGE_MIN
-V_BIT_MAX = OffRAMDefs.VOLTAGE_BIT_MAX
+BIT_TRUNC_MAX = OfflineNeuRegLim.BIT_TRUNC_MAX
+LEAK_V_BIT_MAX = 30  # OfflineNeuRegLim.LEAK_V_BIT_MAX
+LEAK_V_MAX = OfflineNeuRegLim.LEAK_V_MAX
+LEAK_V_MIN = OfflineNeuRegLim.LEAK_V_MIN
+NEG_THRES_MAX = OfflineNeuRegLim.NEG_THRES_MAX
+V_MAX = OfflineNeuRegLim.VOLTAGE_MAX
+V_MIN = OfflineNeuRegLim.VOLTAGE_MIN
+V_BIT_MAX = 30  # OfflineNeuRegLim.VOLTAGE_BIT_MAX
 
 
 SIGNED_PARAM_OVERFLOW_TEXT = "{0} overflow, beyond the range of {1}-bit signed integer."
 V_OVERFLOW_TEXT = SIGNED_PARAM_OVERFLOW_TEXT.format("voltage", V_BIT_MAX)
-LEAK_V_OVERFLOW_TEXT = SIGNED_PARAM_OVERFLOW_TEXT.format("leak voltage", LEAK_V_BIT_MAX)
+LEAK_V_OVERFLOW_TEXT = SIGNED_PARAM_OVERFLOW_TEXT.format(
+    "leak voltage", LEAK_V_BIT_MAX)
 V_RANGE_LIMIT = V_MAX - V_MIN
 
 

@@ -81,12 +81,16 @@ def test_ir_converter():
     # replace_pattern(gm, pattern, Replacement())
 
 
-def test_gm_data_semantic_annotate():
-    model = SimpleSNN()
-    reset_net(model)
-    model.eval()
+# def test_gm_data_semantic_annotate():
+#     model = SimpleSNN()
+#     reset_net(model)
+#     model.eval()
 
-    gm = remove_dropout_and_fuse_conv_bn(model)
-    gm.graph.print_tabular()
+#     gm = remove_dropout_and_fuse_conv_bn(model)
+#     gm.graph.print_tabular()
 
-    # DataSemanticAnnotator.annotate(gm)
+#     # DataSemanticAnnotator.annotate(gm)
+
+
+if __name__ == "__main__":
+    test_ir_converter()

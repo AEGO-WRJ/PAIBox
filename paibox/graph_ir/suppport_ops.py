@@ -55,6 +55,7 @@ class SupportOpRegistry:
 
 SUPPPORT_NEURON_OPS = [neuron.LIFNode, neuron.IFNode]
 USE_CROSSBAR_OPS = [nn.Conv1d, nn.Conv2d, nn.Linear]
+COMP_OPS = [nn.Conv1d, nn.Conv2d, nn.Conv3d, nn.Linear, nn.Identity]
 
 # https://docs.pytorch.org/docs/stable/nn.html#non-linear-activations-weighted-sum-nonlinearity
 ACTIVATION_OPS = [
@@ -84,7 +85,7 @@ def is_module_neuron(m: nn.Module, only_support: bool = True) -> bool:
 
 
 def is_module_activation(m: nn.Module) -> bool:
-    return any(isinstance(m, op) for op in ACT_OPS)
+    return any(isinstance(m, op) for op in ACTIVATION_OPS)
 
 
 def is_module_computation(m: nn.Module) -> bool:

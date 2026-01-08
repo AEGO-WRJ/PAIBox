@@ -6,8 +6,7 @@ from torch.fx.experimental.optimization import fuse
 from torch.fx.node import Argument, Target
 from torch.fx.passes.shape_prop import ShapeProp
 
-COMP_OPS = [nn.Conv1d, nn.Conv2d, nn.Conv3d, nn.Linear, nn.Identity]
-ACT_OPS = [nn.ReLU, nn.ReLU6, nn.PReLU, nn.LeakyReLU, nn.RReLU, nn.ELU]
+from .suppport_ops import is_module_activation, is_module_computation, is_module_neuron
 
 
 @unique
@@ -26,7 +25,9 @@ class DataSemanticAnnotator:
         modules = dict(gm.named_modules())
 
         for node in gm.graph.nodes:
-            print(f"Processing node: {node}, target: {node.target}, op: {node.op}")
+            print(
+                f"Processing node: {node}, target: {node.target}, op: {node.op}")
+            semantic_type = DataSemanticType.UNKNOWN
             if node.op == "placeholder":
                 semantic_type = DataSemanticType.UNKNOWN
             elif node.op == "call_module":
@@ -55,4 +56,5 @@ class DataSemanticAnnotator:
                 print(f"  - Unhandled op: {node.op}")
 
             node.meta[cls.KEY] = semantic_type
-            print(f"  - Set semantic for {node.name} to '{semantic_type.name}'")
+            print(
+                f"  - Set semantic for {node.name} to '{semantic_type.name}'")
