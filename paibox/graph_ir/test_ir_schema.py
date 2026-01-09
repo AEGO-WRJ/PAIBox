@@ -7,8 +7,8 @@ from torch.fx.passes.utils.matcher_utils import SubgraphMatcher
 
 from paibox.graph_ir.ir_schema import (
     NeuronAsOpTracer,
-    remove_dropout_and_fuse_conv_bn,
     propagate_tensor_shape,
+    trace_spikingjelly_model,
 )
 from paibox.graph_ir.semantic_annotate import DataSemanticAnnotator
 
@@ -31,65 +31,20 @@ class SimpleSNN(nn.Module):
         return x1 + x2
 
 
-class Pattern(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.conv1 = nn.Conv2d(4, 16, 3)
-        self.lif1 = neuron.LIFNode(v_threshold=1.0, tau=2.0)
-
-    def forward(self, x):
-        # x = self.conv1(x)
-        x = self.lif1(self.conv1(x))
-        return x
-
-
-def pattern(x):
-    m = Pattern()
-    tracer = NeuronAsOpTracer()
-    traced_graph = tracer.trace(m)
-    traced = fx.GraphModule(m, traced_graph)
-    traced.graph.lint()
-
-    return traced.forward(x)
-
-
-class Replacement(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.conv1 = nn.Conv2d(4, 16, 3)
-
-    def forward(self, x):
-        x = self.conv1(x)
-        return x
-
-
 def test_ir_converter():
     model = SimpleSNN()
     reset_net(model)
     model.eval()
 
-    gm = remove_dropout_and_fuse_conv_bn(model)
+    gm = trace_spikingjelly_model(model)
     assert isinstance(gm, fx.GraphModule)
     gm.graph.print_tabular()
 
+    print("================== After Semantic Annotation ==================")
+
     # Propagate shape
-    example_input = torch.randn((4, 64, 64))
+    example_input = torch.randn((1, 4, 64, 64))
     propagate_tensor_shape(gm, example_input)
-
-    # Replace patterns
-    # Not fit our requirements
-    # replace_pattern(gm, pattern, Replacement())
-
-
-# def test_gm_data_semantic_annotate():
-#     model = SimpleSNN()
-#     reset_net(model)
-#     model.eval()
-
-#     gm = remove_dropout_and_fuse_conv_bn(model)
-#     gm.graph.print_tabular()
-
-#     # DataSemanticAnnotator.annotate(gm)
 
 
 if __name__ == "__main__":

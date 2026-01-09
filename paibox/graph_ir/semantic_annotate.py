@@ -6,6 +6,7 @@ from torch.fx.experimental.optimization import fuse
 from torch.fx.node import Argument, Target
 from torch.fx.passes.shape_prop import ShapeProp
 
+from .ir_base import OfflineCoreOpNode
 from .suppport_ops import is_module_activation, is_module_computation, is_module_neuron
 
 
@@ -34,7 +35,14 @@ class DataSemanticAnnotator:
                 assert isinstance(node.target, str)
                 m = modules[node.target]
 
-                if is_module_neuron(m):
+                if isinstance(m, OfflineCoreOpNode):
+                    if is_module_neuron(m.act_module):
+                        semantic_type = DataSemanticType.SPIKE
+                    elif is_module_activation(m.act_module):
+                        semantic_type = DataSemanticType.ACTIVATION
+                    else:
+                        semantic_type = DataSemanticType.POTENTIAL
+                elif is_module_neuron(m):
                     semantic_type = DataSemanticType.SPIKE
                 elif is_module_activation(m):
                     semantic_type = DataSemanticType.ACTIVATION
