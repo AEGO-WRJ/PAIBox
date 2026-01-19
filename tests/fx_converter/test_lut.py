@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import pytest
 import torch
 
-from paibox.ops.lut_ops import LutLinear, LutReLU, LutSigmoid, LutSoftsign, LutTanh
+from paibox.fx_converter.lut import LutLinear, LutReLU, LutSigmoid, LutSoftsign, LutTanh
 
 matplotlib.use("Agg")
 
