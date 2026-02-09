@@ -1,4 +1,3 @@
-import sys
 from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import asdict
@@ -15,9 +14,9 @@ from paicorelib import (
     OnlineConfigFrame3,
     OnlineFrameGen,
     OnlineModeEnable,
+    RoutingCoord,
 )
 from paicorelib import ReplicationId as RId
-from paicorelib import RoutingCoord
 from paicorelib.framelib.utils import _mask, np2bin, np2npy, np2txt
 
 from paibox.components import Neuron
@@ -221,7 +220,7 @@ def gen_online_config_frames(
     wight_width = core_plm_conf.core_params.weight_width
 
     # online neuron config never need to store in WRAM
-    for neu_conf in core_plm_conf.neuron_configs:
+    for neu_conf in core_plm_conf.neuron_configs.values():
         config_frame_type3.append(
             OnlineFrameGen.gen_config_frame3(
                 chip_coord,

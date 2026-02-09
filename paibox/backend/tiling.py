@@ -290,7 +290,9 @@ def optimal_lcn_matmul2d(
     n_fanin_patch, n_fanout_patch = shape_b
     n_patch = shape_a[0]
 
-    for lcn in LCN_EX.__members__.values():
+    candidate_lcn = list(LCN_EX)[:-1]
+
+    for lcn in candidate_lcn:
         fin_capacity = core_n_fanin_base << lcn
         fout_capacity = core_n_fanout_base >> lcn
 
@@ -798,10 +800,14 @@ def _conv2d_o_tile_visitor(
                 g_tl, ho_tl, wo_tl = _eff_tile_size3d(
                     (g_start, ho_start, wo_start), tile_size3d, (groups, ho, wo)
                 )
-                yield (g_idx, ho_idx, wo_idx), (g_start, ho_start, wo_start), (
-                    g_tl,
-                    ho_tl,
-                    wo_tl,
+                yield (
+                    (g_idx, ho_idx, wo_idx),
+                    (g_start, ho_start, wo_start),
+                    (
+                        g_tl,
+                        ho_tl,
+                        wo_tl,
+                    ),
                 )
                 wo_start += wo_tl
             ho_start += ho_tl

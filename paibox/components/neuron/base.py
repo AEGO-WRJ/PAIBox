@@ -18,6 +18,7 @@ from paicorelib import (
     LeakOrder,
     LUTDataType,
     MaxPoolingEnable,
+    OfflineNeuRegLim,
     OnlineModeEnable,
     SNNModeEnable,
     SpikeWidthFormat,
@@ -38,8 +39,8 @@ from paibox.types import (
 from paibox.utils import arg_check_non_neg, arg_check_pos, as_shape, shape2num
 
 from .utils import (
-    BIT_TRUNC_MAX,
-    NEG_THRES_MAX,
+    # BIT_TRUNC_MAX,
+    # NEG_THRES_MAX,
     NeuFireState,
     RTModeKwds,
     _input_width_format,
@@ -55,6 +56,11 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import Unpack
 
+if sys.version_info >= (3, 14):
+    from annotationlib import get_annotations
+else:
+    from typing_extensions import get_annotations
+
 if TYPE_CHECKING:
     from ..synapses.learning import STDPSynAttrKwds
 
@@ -66,7 +72,7 @@ NEU_TARGET_CHIP_UNSET = -1
 
 def _neg_thres_check(th: int | None, signed: bool) -> int:
     if th is None:
-        return -NEG_THRES_MAX
+        return -OfflineNeuRegLim.NEG_THRES_MAX
     elif signed:
         return th
     else:
@@ -453,9 +459,9 @@ class OfflineNeuron(Neuron):
                 ParamNotSimulatedWarning,
             )
 
-        if self.bit_trunc > BIT_TRUNC_MAX:
+        if self.bit_trunc > OfflineNeuRegLim.BIT_TRUNC_MAX:
             raise ValueError(
-                f"'bit_trunc' should be less than or equal to {BIT_TRUNC_MAX}, but got {self.bit_trunc}."
+                f"'bit_trunc' should be less than or equal to {OfflineNeuRegLim.BIT_TRUNC_MAX}, but got {self.bit_trunc}."
             )
 
         self.init_delay_registers()
@@ -724,8 +730,10 @@ class OnlineNeuron(Neuron):
 
     def _set_syn_attrs(self, **kwargs: Unpack["STDPSynAttrKwds"]) -> None:
         """Set the synapse attributes called by the source STDP synapse only."""
+        annotations = get_annotations(OnlineNeuron)
+
         for k, v in kwargs.items():
-            if k not in self.__annotations__:
+            if k not in annotations:
                 raise ValueError(f"'{k}' is not a valid annotation.")
             elif hasattr(self, k):
                 if (cur_v := getattr(self, k)) != v:
